@@ -1,0 +1,58 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Nueva camiseta">
+  <h1>Agregar camiseta</h1>
+
+  <form id="form-camiseta">
+    <input id="equipo" placeholder="Equipo" required />
+    <input id="temporada" placeholder="Temporada" />
+    <input id="tipo" placeholder="Titular / Suplente / Arquero" />
+    <input id="marca" placeholder="Marca" />
+    <input id="imagen_url" placeholder="URL de imagen" />
+    <textarea id="descripcion" placeholder="Descripción"></textarea>
+
+    <button type="submit">Guardar</button>
+  </form>
+
+  <p id="mensaje"></p>
+</Layout>
+
+<script>
+  import { supabase } from "../lib/supabase.js";
+
+  const form = document.getElementById("form-camiseta");
+  const mensaje = document.getElementById("mensaje");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const nuevaCamiseta = {
+      user_id: userData.user.id,
+      equipo: document.getElementById("equipo").value,
+      temporada: document.getElementById("temporada").value,
+      tipo: document.getElementById("tipo").value,
+      marca: document.getElementById("marca").value,
+      imagen_url: document.getElementById("imagen_url").value,
+      descripcion: document.getElementById("descripcion").value,
+    };
+
+    const { error } = await supabase
+      .from("camisetas")
+      .insert([nuevaCamiseta]);
+
+    if (error) {
+      mensaje.textContent = "Error al guardar.";
+    } else {
+      window.location.href = "/dashboard";
+    }
+  });
+</script>

@@ -1,0 +1,60 @@
+---
+import Layout from "../../layouts/Layout.astro";
+const { id } = Astro.params;
+---
+
+<Layout title="Editar camiseta">
+  <h1>Editar camiseta</h1>
+
+  <form id="form-editar">
+    <input id="equipo" placeholder="Equipo" required />
+    <input id="temporada" placeholder="Temporada" />
+    <input id="tipo" placeholder="Tipo" />
+    <input id="marca" placeholder="Marca" />
+    <input id="imagen_url" placeholder="URL de imagen" />
+    <textarea id="descripcion" placeholder="Descripción"></textarea>
+
+    <button type="submit">Guardar cambios</button>
+  </form>
+</Layout>
+
+<script define:vars={{ id }}>
+  import { supabase } from "../../lib/supabase.js";
+
+  const form = document.getElementById("form-editar");
+
+  async function cargarDatos() {
+    const { data } = await supabase
+      .from("camisetas")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    document.getElementById("equipo").value = data.equipo;
+    document.getElementById("temporada").value = data.temporada;
+    document.getElementById("tipo").value = data.tipo;
+    document.getElementById("marca").value = data.marca;
+    document.getElementById("imagen_url").value = data.imagen_url;
+    document.getElementById("descripcion").value = data.descripcion;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    await supabase
+      .from("camisetas")
+      .update({
+        equipo: document.getElementById("equipo").value,
+        temporada: document.getElementById("temporada").value,
+        tipo: document.getElementById("tipo").value,
+        marca: document.getElementById("marca").value,
+        imagen_url: document.getElementById("imagen_url").value,
+        descripcion: document.getElementById("descripcion").value,
+      })
+      .eq("id", id);
+
+    window.location.href = "/dashboard";
+  });
+
+  cargarDatos();
+</script>

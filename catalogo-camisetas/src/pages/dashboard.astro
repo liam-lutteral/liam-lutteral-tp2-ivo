@@ -1,0 +1,76 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Mi catálogo">
+  <h1>Mi catálogo</h1>
+
+  <button id="logout">Cerrar sesión</button>
+  <a href="/nueva">Agregar camiseta</a>
+
+  <section id="camisetas"></section>
+</Layout>
+
+<script>
+  import { supabase } from "../lib/supabase.js";
+
+  const contenedor = document.getElementById("camisetas");
+  const logoutBtn = document.getElementById("logout");
+
+  async function cargarCamisetas() {
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("camisetas")
+      .select("*")
+      .eq("user_id", userData.user.id);
+
+    if (error) {
+      contenedor.innerHTML = "<p>Error al cargar camisetas.</p>";
+      return;
+    }
+
+    contenedor.innerHTML = data.map((camiseta) => `
+      <article class="card">
+        <img src="${camiseta.imagen_url}" alt="${camiseta.equipo}" />
+        <h2>${camiseta.equipo}</h2>
+        <p>${camiseta.temporada}</p>
+        <p>${camiseta.tipo}</p>
+        <p>${camiseta.marca}</p>
+        <a href="/editar/${camiseta.id}">Editar</a>
+      </article>
+    `).join("");
+  }
+
+  logoutBtn.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  });
+
+  cargarCamisetas();
+</script>
+
+<style>
+  #camisetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+  }
+
+  .card {
+    background: #222;
+    padding: 15px;
+    border-radius: 12px;
+  }
+
+  img {
+    width: 100%;
+    border-radius: 8px;
+  }
+</style>
