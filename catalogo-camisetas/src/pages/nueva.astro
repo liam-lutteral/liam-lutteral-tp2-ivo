@@ -1,25 +1,51 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Nueva camiseta">
-  <h1>Agregar camiseta</h1>
+  <section class="page-shell">
+    <div class="page-header">
+      <span class="eyebrow">Agregar nuevo modelo</span>
+      <h1>Añadí tu próxima camiseta.</h1>
+      <p>Ingresá el título, el tipo y la URL de la imagen para que tu catálogo luzca perfecto.</p>
+    </div>
 
-  <form id="form-camiseta">
-    <input id="equipo" placeholder="Equipo" required />
-    <input id="temporada" placeholder="Temporada" />
-    <input id="tipo" placeholder="Titular / Suplente / Arquero" />
-    <input id="marca" placeholder="Marca" />
-    <input id="imagen_url" placeholder="URL de imagen" />
-    <textarea id="descripcion" placeholder="Descripción"></textarea>
+    <form id="form-camiseta" class="product-form">
+      <label>
+        Título de la camiseta
+        <input id="equipo" placeholder="Ej: Camiseta negra urbana" required />
+      </label>
+      <label>
+        Tipo / Corte
+        <select id="tipo">
+          <option value="Titular">Titular</option>
+          <option value="Suplente">Suplente</option>
+          <option value="Arquero">Arquero</option>
+          <option value="Oversized">Oversized</option>
+          <option value="Slim fit">Slim fit</option>
+          <option value="Boxy">Boxy</option>
+        </select>
+      </label>
+      <label>
+        Marca
+        <input id="marca" placeholder="Marca" />
+      </label>
+      <label>
+        URL de imagen
+        <input id="imagen_url" placeholder="https://..." />
+      </label>
+      <label>
+        Descripción
+        <textarea id="descripcion" placeholder="Descripción breve"></textarea>
+      </label>
 
-    <button type="submit">Guardar</button>
-  </form>
-
-  <p id="mensaje"></p>
+      <button type="submit">Guardar camiseta</button>
+      <p class="message" id="mensaje"></p>
+    </form>
+  </section>
 </Layout>
 
-<script>
+<script type="module">
   import { supabase } from "../lib/supabase.js";
 
   const form = document.getElementById("form-camiseta");
@@ -38,7 +64,7 @@ import Layout from "../layouts/Layout.astro";
     const nuevaCamiseta = {
       user_id: userData.user.id,
       equipo: document.getElementById("equipo").value,
-      temporada: document.getElementById("temporada").value,
+      temporada: "Actual",
       tipo: document.getElementById("tipo").value,
       marca: document.getElementById("marca").value,
       imagen_url: document.getElementById("imagen_url").value,
@@ -56,3 +82,90 @@ import Layout from "../layouts/Layout.astro";
     }
   });
 </script>
+
+<style>
+  .page-shell {
+    display: grid;
+    gap: 32px;
+    padding: 18px 0 0;
+    max-width: 860px;
+  }
+
+  .page-header {
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 34px;
+    box-shadow: 0 30px 60px rgba(17, 17, 17, 0.08);
+  }
+
+  .eyebrow {
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    font-size: 0.82rem;
+    color: #7d7d7d;
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 2.8rem);
+    color: #111111;
+  }
+
+  p {
+    margin-top: 16px;
+    color: #555555;
+    line-height: 1.75;
+  }
+
+  .product-form {
+    display: grid;
+    gap: 18px;
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 32px;
+    box-shadow: 0 26px 70px rgba(17, 17, 17, 0.08);
+  }
+
+  label {
+    display: grid;
+    gap: 10px;
+    color: #444444;
+    font-weight: 600;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid #e3dcd2;
+    background: #fbf8f2;
+    border-radius: 16px;
+    padding: 16px 18px;
+    font-size: 1rem;
+    color: #111111;
+  }
+
+  textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+
+  button {
+    border: 0;
+    border-radius: 999px;
+    padding: 16px 20px;
+    background: #111111;
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+    width: fit-content;
+  }
+
+  .message {
+    color: #d12f2f;
+    margin-top: 8px;
+    min-height: 22px;
+  }
+</style>

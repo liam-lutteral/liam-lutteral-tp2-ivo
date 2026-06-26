@@ -1,25 +1,110 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import { fitOptions, metadataFor } from "../data/camisetas.js";
 ---
 
 <Layout title="Mi catálogo">
-  <h1>Mi catálogo</h1>
+  <section class="dashboard-shell">
+    <header class="dashboard-header">
+      <div>
+        <span class="eyebrow">Catálogo personal</span>
+        <h1>Explorá tus camisetas con estilo.</h1>
+        <p>Filtrá por ajuste, cambiá colores al instante y usá el recomendador de tallas mientras navegás.</p>
+      </div>
+      <div class="dashboard-cta">
+        <a class="primary-button" href="/nueva">Agregar camiseta</a>
+        <button class="secondary-button" id="logout">Cerrar sesión</button>
+      </div>
+    </header>
 
-  <button id="logout">Cerrar sesión</button>
-  <a href="/nueva">Agregar camiseta</a>
+    <div class="dashboard-panel">
+      <aside class="side-panel">
+        <div class="filter-card">
+          <span class="eyebrow">Filtros</span>
+          <h2>Encuentra tu próximo modelo</h2>
+          <label>
+            Buscar
+            <input id="search" placeholder="Equipo, marca, tipo" />
+          </label>
+          <label>
+            Ajuste
+            <select id="filter-fit">
+              {fitOptions.map((option) => (
+                <option value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+          <div class="tag-row">
+            <span class="badge">Sistema de ajuste</span>
+            <span class="badge">Hover inteligente</span>
+          </div>
+        </div>
 
-  <section id="camisetas"></section>
+        <div class="recommender-card">
+          <span class="eyebrow">Recomendador de tallas</span>
+          <h2>Tu talla ideal</h2>
+          <p>Ingresá altura, peso y preferencia para reducir devoluciones.</p>
+          <div class="recommender-grid">
+            <label>
+              Altura (cm)
+              <input id="height" type="number" min="100" max="230" placeholder="170" />
+            </label>
+            <label>
+              Peso (kg)
+              <input id="weight" type="number" min="35" max="150" placeholder="72" />
+            </label>
+            <label>
+              Ajuste
+              <select id="fit-preference">
+                <option value="Neutral">Neutral</option>
+                <option value="Ajustado">Ajustado</option>
+                <option value="Sueltos">Sueltos</option>
+              </select>
+            </label>
+          </div>
+          <button id="calc-size">Calcular talla</button>
+          <p id="size-result">Ej: Sugerencia instantánea luego de completar tus datos.</p>
+        </div>
+      </aside>
+
+      <div class="catalog-frame">
+        <div class="catalog-topbar">
+          <div>
+            <span class="eyebrow">Catálogo</span>
+            <p id="card-count">Cargando camisetas...</p>
+          </div>
+          <button id="refresh" class="icon-button">Actualizar</button>
+        </div>
+
+        <section id="camisetas" class="catalog-grid"></section>
+        <button id="load-more" class="load-more">Cargar más</button>
+      </div>
+    </div>
+  </section>
 </Layout>
 
-<script>
+<script type="module">
   import { supabase } from "../lib/supabase.js";
+  import { fitOptions, metadataFor } from "../data/camisetas.js";
+
+  const ITEMS_PER_PAGE = 6;
+  let page = 0;
+  let allItems = [];
 
   const contenedor = document.getElementById("camisetas");
+  const loadMore = document.getElementById("load-more");
+  const filterFit = document.getElementById("filter-fit");
+  const searchInput = document.getElementById("search");
+  const cardCount = document.getElementById("card-count");
   const logoutBtn = document.getElementById("logout");
+  const refreshBtn = document.getElementById("refresh");
+  const calcSizeBtn = document.getElementById("calc-size");
+  const sizeResult = document.getElementById("size-result");
+
+  filterFit.innerHTML = fitOptions.map((option) => `<option value="${option}">${option}</option>`).join("");
 
   async function cargarCamisetas() {
     const { data: userData } = await supabase.auth.getUser();
-
     if (!userData.user) {
       window.location.href = "/login";
       return;
@@ -28,23 +113,127 @@ import Layout from "../layouts/Layout.astro";
     const { data, error } = await supabase
       .from("camisetas")
       .select("*")
-      .eq("user_id", userData.user.id);
+      .eq("user_id", userData.user.id)
+      .order("equipo", { ascending: true });
 
     if (error) {
-      contenedor.innerHTML = "<p>Error al cargar camisetas.</p>";
+      contenedor.innerHTML = `<p class="empty-state">Error al cargar camisetas.</p>`;
       return;
     }
 
-    contenedor.innerHTML = data.map((camiseta) => `
-      <article class="card">
-        <img src="${camiseta.imagen_url}" alt="${camiseta.equipo}" />
-        <h2>${camiseta.equipo}</h2>
-        <p>${camiseta.temporada}</p>
-        <p>${camiseta.tipo}</p>
-        <p>${camiseta.marca}</p>
-        <a href="/editar/${camiseta.id}">Editar</a>
+    allItems = data.map((item) => ({ ...item, metadata: metadataFor(item) }));
+    page = 0;
+    renderPage();
+  }
+
+  function getFilteredItems() {
+    const query = searchInput.value.trim().toLowerCase();
+    const selectedFit = filterFit.value;
+
+    return allItems.filter((item) => {
+      const text = `${item.equipo} ${item.tipo} ${item.marca} ${item.descripcion}`.toLowerCase();
+      const fitMatch = selectedFit === "Todos" || item.metadata.fit === selectedFit;
+      const searchMatch = query.length === 0 || text.includes(query);
+      return fitMatch && searchMatch;
+    });
+  }
+
+  function renderCard(item) {
+    const front = item.imagen_url || item.metadata.front;
+    const back = item.metadata.back;
+
+    return `
+      <article class="product-card" data-id="${item.id}" data-default-image="${front}" data-back-image="${back}">
+        <div class="card-image" style="--accent:${item.metadata.colors[0]};">
+          <div class="color-ring"></div>
+          <img class="front-image" src="${front}" alt="${item.equipo}" loading="lazy" />
+          <img class="back-image" src="${back}" alt="Vista trasera de ${item.equipo}" loading="lazy" />
+          <div class="image-tag">${item.metadata.collar} · ${item.metadata.sleeve}</div>
+        </div>
+        <div class="card-body">
+          <div class="card-badges">
+            <span>${item.metadata.fit}</span>
+            <span>${item.tipo || "Estilo libre"}</span>
+          </div>
+          <h2>${item.equipo}</h2>
+          <p>${item.descripcion || item.metadata.description}</p>
+          <div class="meta-row">
+            <span>${item.marca || "Marca libre"}</span>
+            <span class="code">#${item.id.slice(0, 8)}</span>
+          </div>
+          <div class="swatches">
+            ${item.metadata.colors.map((color) => `<button type="button" class="swatch" data-color="${color}" style="background:${color};"></button>`).join("")}
+          </div>
+          <div class="action-row">
+            <a class="secondary-button" href="/editar/${item.id}">Editar</a>
+            <button type="button" class="primary-button">Añadir al carrito</button>
+          </div>
+        </div>
       </article>
-    `).join("");
+    `;
+  }
+
+  function renderPage() {
+    const filtered = getFilteredItems();
+    const visible = filtered.slice(0, (page + 1) * ITEMS_PER_PAGE);
+
+    if (filtered.length === 0) {
+      contenedor.innerHTML = `<p class="empty-state">No hay camisetas que coincidan con los filtros.</p>`;
+      loadMore.style.display = "none";
+      cardCount.textContent = "0 modelos encontrados";
+      return;
+    }
+
+    contenedor.innerHTML = visible.map(renderCard).join("");
+    attachEvents();
+    cardCount.textContent = `${filtered.length} modelo${filtered.length === 1 ? "" : "s"}`;
+    loadMore.style.display = visible.length < filtered.length ? "inline-flex" : "none";
+  }
+
+  function attachEvents() {
+    document.querySelectorAll(".product-card").forEach((card) => {
+      const swatches = card.querySelectorAll(".swatch");
+      const image = card.querySelector(".front-image");
+      const colorRing = card.querySelector(".color-ring");
+      const defaultImage = card.dataset.defaultImage;
+
+      swatches.forEach((swatch) => {
+        swatch.addEventListener("click", () => {
+          const color = swatch.dataset.color;
+          image.src = defaultImage;
+          colorRing.style.boxShadow = `0 0 0 4px ${color}55`;
+          colorRing.style.background = color;
+        });
+      });
+    });
+  }
+
+  function suggestSize() {
+    const height = Number(document.getElementById("height").value);
+    const weight = Number(document.getElementById("weight").value);
+    const preference = document.getElementById("fit-preference").value;
+
+    if (!height || !weight) {
+      sizeResult.textContent = "Ingresá altura y peso para obtener una sugerencia.";
+      return;
+    }
+
+    const bmi = weight / ((height / 100) * (height / 100));
+    let size = "M";
+
+    if (bmi < 20) size = "S";
+    else if (bmi < 25) size = "M";
+    else if (bmi < 28) size = "L";
+    else size = "XL";
+
+    if (preference === "Ajustado") {
+      size = size === "S" ? "XS" : size === "M" ? "S" : size === "M";
+    }
+    if (preference === "Sueltos") {
+      size = size === "XL" ? "XXL" : size === "L" ? "XL" : "L";
+    }
+
+    sizeResult.textContent = `Sugerencia: ${size} (${preference.toLowerCase()})`;
   }
 
   logoutBtn.addEventListener("click", async () => {
@@ -52,25 +241,360 @@ import Layout from "../layouts/Layout.astro";
     window.location.href = "/";
   });
 
+  refreshBtn.addEventListener("click", cargarCamisetas);
+  filterFit.addEventListener("change", () => { page = 0; renderPage(); });
+  searchInput.addEventListener("input", () => { page = 0; renderPage(); });
+  loadMore.addEventListener("click", () => { page += 1; renderPage(); });
+  calcSizeBtn.addEventListener("click", suggestSize);
+
   cargarCamisetas();
 </script>
 
 <style>
-  #camisetas {
+  .dashboard-shell {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-    margin-top: 30px;
+    gap: 28px;
   }
 
-  .card {
-    background: #222;
-    padding: 15px;
-    border-radius: 12px;
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start;
   }
 
-  img {
+  .dashboard-header h1 {
+    margin: 0;
+    font-size: clamp(2rem, 2.8vw, 3rem);
+    line-height: 1.05;
+  }
+
+  .dashboard-header p {
+    margin: 18px 0 0;
+    max-width: 640px;
+    color: #525252;
+    line-height: 1.75;
+  }
+
+  .dashboard-cta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .load-more,
+  #calc-size {
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: transform 180ms ease, background 180ms ease;
+  }
+
+  .primary-button {
+    padding: 16px 26px;
+    background: #111111;
+    color: #ffffff;
+  }
+
+  .primary-button:hover,
+  .secondary-button:hover,
+  .icon-button:hover,
+  #calc-size:hover,
+  .load-more:hover {
+    transform: translateY(-1px);
+  }
+
+  .secondary-button,
+  .icon-button,
+  .load-more {
+    padding: 14px 24px;
+    background: rgba(17, 17, 17, 0.06);
+    color: #111111;
+  }
+
+  .dashboard-panel {
+    display: grid;
+    gap: 24px;
+  }
+
+  .side-panel {
+    display: grid;
+    gap: 24px;
+  }
+
+  .filter-card,
+  .recommender-card {
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 28px;
+    box-shadow: 0 30px 70px rgba(17, 17, 17, 0.08);
+  }
+
+  .filter-card h2,
+  .recommender-card h2 {
+    margin: 12px 0 22px;
+    font-size: 1.65rem;
+  }
+
+  label {
+    display: grid;
+    gap: 10px;
+    font-weight: 600;
+    color: #444444;
+    margin-top: 18px;
+  }
+
+  input,
+  select {
     width: 100%;
-    border-radius: 8px;
+    border: 1px solid #e4ddd5;
+    border-radius: 16px;
+    padding: 16px 18px;
+    background: #faf6ef;
+    color: #111111;
+    font-size: 1rem;
+  }
+
+  .tag-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  .badge {
+    display: inline-flex;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(17, 17, 17, 0.06);
+    color: #444444;
+    font-size: 0.92rem;
+  }
+
+  .recommender-grid {
+    display: grid;
+    gap: 18px;
+  }
+
+  .catalog-frame {
+    display: grid;
+    gap: 20px;
+  }
+
+  .catalog-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .catalog-topbar p {
+    margin: 8px 0 0;
+    color: #666666;
+  }
+
+  .catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .product-card {
+    background: #ffffff;
+    border-radius: 32px;
+    overflow: hidden;
+    border: 1px solid rgba(17, 17, 17, 0.04);
+    box-shadow: 0 24px 50px rgba(17, 17, 17, 0.06);
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+
+  .product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 36px 90px rgba(17, 17, 17, 0.1);
+  }
+
+  .card-image {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 320px;
+    background: #f6f1e7;
+  }
+
+  .card-image::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(17, 17, 17, 0.08) 100%);
+  }
+
+  .color-ring {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.08);
+    background: var(--accent, #f2f1eb);
+    z-index: 2;
+  }
+
+  .card-image img {
+    position: relative;
+    width: 100%;
+    object-fit: cover;
+    transition: opacity 240ms ease, transform 240ms ease;
+  }
+
+  .card-image .back-image {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 240ms ease;
+  }
+
+  .product-card:hover .front-image {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+
+  .product-card:hover .back-image {
+    opacity: 1;
+  }
+
+  .image-tag {
+    position: absolute;
+    left: 22px;
+    bottom: 22px;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 999px;
+    padding: 10px 14px;
+    color: #111111;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .card-body {
+    padding: 26px;
+    display: grid;
+    gap: 18px;
+  }
+
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .card-badges span {
+    color: #777777;
+    font-size: 0.88rem;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.55rem;
+    line-height: 1.1;
+  }
+
+  .card-body p {
+    margin: 0;
+    color: #5d5d5d;
+    line-height: 1.75;
+    min-height: 56px;
+  }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #828282;
+    font-size: 0.94rem;
+  }
+
+  .code {
+    font-family: "Courier New", Courier, monospace;
+  }
+
+  .swatches {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    cursor: pointer;
+    transition: transform 180ms ease;
+  }
+
+  .swatch:hover {
+    transform: scale(1.08);
+  }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .secondary-button {
+    flex: 1;
+    text-align: center;
+    background: rgba(17, 17, 17, 0.06);
+    color: #111111;
+    padding: 14px 18px;
+  }
+
+  .primary-button {
+    flex: 1;
+    text-align: center;
+    background: #111111;
+    color: #ffffff;
+    padding: 14px 18px;
+  }
+
+  .load-more {
+    width: fit-content;
+    align-self: center;
+    padding: 14px 24px;
+    background: #111111;
+    color: #ffffff;
+  }
+
+  .empty-state {
+    grid-column: 1 / -1;
+    padding: 54px 24px;
+    border-radius: 28px;
+    background: #fff8f1;
+    color: #6b6b6b;
+    text-align: center;
+  }
+
+  @media (max-width: 980px) {
+    .dashboard-header,
+    .dashboard-panel {
+      grid-template-columns: 1fr;
+    }
+
+    .dashboard-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .dashboard-cta {
+      justify-content: flex-start;
+    }
   }
 </style>
