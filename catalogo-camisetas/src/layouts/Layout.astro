@@ -13,11 +13,12 @@ const { title } = Astro.props;
     <div class="shell">
       <nav class="topnav">
         <a class="brand" href="/">Catálogo</a>
-        <div class="nav-links">
-          <a href="/dashboard">Mi catálogo</a>
-          <a href="/nueva">Agregar</a>
-          <a href="/login">Login</a>
-          <a href="/register">Registro</a>
+        <div class="nav-links" id="nav-links">
+          <a href="/login" data-nav="guest">Iniciar sesión</a>
+          <a href="/register" data-nav="guest">Registro</a>
+          <a href="/dashboard" data-nav="auth" hidden>Mi catálogo</a>
+          <a href="/nueva" data-nav="auth" hidden>Nueva camiseta</a>
+          <button type="button" id="nav-logout" data-nav="auth" hidden>Cerrar sesión</button>
         </div>
       </nav>
       <main>
@@ -26,6 +27,30 @@ const { title } = Astro.props;
     </div>
   </body>
 </html>
+
+<script type="module">
+  import { supabase } from "../lib/supabase.js";
+
+  const guestLinks = document.querySelectorAll('[data-nav="guest"]');
+  const authLinks = document.querySelectorAll('[data-nav="auth"]');
+  const logoutBtn = document.getElementById("nav-logout");
+
+  async function updateNav() {
+    const { data } = await supabase.auth.getSession();
+    const isLoggedIn = Boolean(data.session);
+
+    guestLinks.forEach((el) => { el.hidden = isLoggedIn; });
+    authLinks.forEach((el) => { el.hidden = !isLoggedIn; });
+  }
+
+  logoutBtn?.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  });
+
+  supabase.auth.onAuthStateChange(updateNav);
+  updateNav();
+</script>
 
 <style>
   :global(:root) {
@@ -88,6 +113,23 @@ const { title } = Astro.props;
 
   .topnav a:hover {
     color: #111111;
+  }
+
+  #nav-logout {
+    border: 0;
+    background: rgba(17, 17, 17, 0.06);
+    color: #444444;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 180ms ease, background 180ms ease;
+  }
+
+  #nav-logout:hover {
+    color: #111111;
+    background: rgba(17, 17, 17, 0.1);
   }
 
   main {

@@ -1,70 +1,37 @@
 ﻿---
 import Layout from "../layouts/Layout.astro";
-import { fitOptions, metadataFor } from "../data/camisetas.js";
+import { tipoOptions } from "../data/camisetas.js";
 ---
 
 <Layout title="Mi catálogo">
   <section class="dashboard-shell">
     <header class="dashboard-header">
       <div>
-        <span class="eyebrow">Catálogo personal</span>
-        <h1>Explorá tus camisetas con estilo.</h1>
-        <p>Filtrá por ajuste, cambiá colores al instante y usá el recomendador de tallas mientras navegás.</p>
+        <span class="eyebrow">Mi catálogo</span>
+        <h1>Tus camisetas de fútbol.</h1>
+        <p>Gestioná tu colección personal: cada usuario ve y edita solo sus propias camisetas.</p>
       </div>
       <div class="dashboard-cta">
-        <a class="primary-button" href="/nueva">Agregar camiseta</a>
-        <button class="secondary-button" id="logout">Cerrar sesión</button>
+        <a class="primary-button" href="/nueva">Nueva camiseta</a>
       </div>
     </header>
 
     <div class="dashboard-panel">
-      <aside class="side-panel">
-        <div class="filter-card">
-          <span class="eyebrow">Filtros</span>
-          <h2>Encuentra tu próximo modelo</h2>
-          <label>
-            Buscar
-            <input id="search" placeholder="Equipo, marca, tipo" />
-          </label>
-          <label>
-            Ajuste
-            <select id="filter-fit">
-              {fitOptions.map((option) => (
-                <option value={option}>{option}</option>
-              ))}
-            </select>
-          </label>
-          <div class="tag-row">
-            <span class="badge">Sistema de ajuste</span>
-            <span class="badge">Hover inteligente</span>
-          </div>
-        </div>
-
-        <div class="recommender-card">
-          <span class="eyebrow">Recomendador de tallas</span>
-          <h2>Tu talla ideal</h2>
-          <p>Ingresá altura, peso y preferencia para reducir devoluciones.</p>
-          <div class="recommender-grid">
-            <label>
-              Altura (cm)
-              <input id="height" type="number" min="100" max="230" placeholder="170" />
-            </label>
-            <label>
-              Peso (kg)
-              <input id="weight" type="number" min="35" max="150" placeholder="72" />
-            </label>
-            <label>
-              Ajuste
-              <select id="fit-preference">
-                <option value="Neutral">Neutral</option>
-                <option value="Ajustado">Ajustado</option>
-                <option value="Sueltos">Sueltos</option>
-              </select>
-            </label>
-          </div>
-          <button id="calc-size">Calcular talla</button>
-          <p id="size-result">Ej: Sugerencia instantánea luego de completar tus datos.</p>
-        </div>
+      <aside class="filter-card">
+        <span class="eyebrow">Filtros</span>
+        <h2>Buscar en tu colección</h2>
+        <label>
+          Buscar
+          <input id="search" placeholder="Equipo, marca, temporada..." />
+        </label>
+        <label>
+          Tipo de equipación
+          <select id="filter-tipo">
+            {tipoOptions.map((option) => (
+              <option value={option}>{option}</option>
+            ))}
+          </select>
+        </label>
       </aside>
 
       <div class="catalog-frame">
@@ -73,11 +40,13 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
             <span class="eyebrow">Catálogo</span>
             <p id="card-count">Cargando camisetas...</p>
           </div>
-          <button id="refresh" class="icon-button">Actualizar</button>
+          <button id="refresh" class="icon-button" type="button">Actualizar</button>
         </div>
 
         <section id="camisetas" class="catalog-grid"></section>
-        <button id="load-more" class="load-more">Cargar más</button>
+        <p id="empty-hint" class="empty-hint" hidden>
+          Todavía no tenés camisetas. <a href="/nueva">Agregá la primera</a>.
+        </p>
       </div>
     </div>
   </section>
@@ -85,23 +54,17 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
 
 <script type="module">
   import { supabase } from "../lib/supabase.js";
-  import { fitOptions, metadataFor } from "../data/camisetas.js";
-
-  const ITEMS_PER_PAGE = 6;
-  let page = 0;
-  let allItems = [];
+  import { metadataFor } from "../data/camisetas.js";
+  import { escapeHtml, FALLBACK_IMAGE } from "../lib/validation.js";
 
   const contenedor = document.getElementById("camisetas");
-  const loadMore = document.getElementById("load-more");
-  const filterFit = document.getElementById("filter-fit");
+  const filterTipo = document.getElementById("filter-tipo");
   const searchInput = document.getElementById("search");
   const cardCount = document.getElementById("card-count");
-  const logoutBtn = document.getElementById("logout");
   const refreshBtn = document.getElementById("refresh");
-  const calcSizeBtn = document.getElementById("calc-size");
-  const sizeResult = document.getElementById("size-result");
+  const emptyHint = document.getElementById("empty-hint");
 
-  filterFit.innerHTML = fitOptions.map((option) => `<option value="${option}">${option}</option>`).join("");
+  let allItems = [];
 
   async function cargarCamisetas() {
     const { data: userData } = await supabase.auth.getUser();
@@ -117,135 +80,113 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
       .order("equipo", { ascending: true });
 
     if (error) {
-      contenedor.innerHTML = `<p class="empty-state">Error al cargar camisetas.</p>`;
+      contenedor.innerHTML = `<p class="empty-state">Error al cargar: ${escapeHtml(error.message)}</p>`;
+      cardCount.textContent = "Error";
       return;
     }
 
-    allItems = data.map((item) => ({ ...item, metadata: metadataFor(item) }));
-    page = 0;
-    renderPage();
+    allItems = data ?? [];
+    renderCatalog();
   }
 
   function getFilteredItems() {
     const query = searchInput.value.trim().toLowerCase();
-    const selectedFit = filterFit.value;
+    const selectedTipo = filterTipo.value;
 
     return allItems.filter((item) => {
-      const text = `${item.equipo} ${item.tipo} ${item.marca} ${item.descripcion}`.toLowerCase();
-      const fitMatch = selectedFit === "Todos" || item.metadata.fit === selectedFit;
+      const text = `${item.equipo} ${item.tipo} ${item.marca} ${item.temporada} ${item.descripcion}`.toLowerCase();
+      const tipoMatch = selectedTipo === "Todos" || item.tipo === selectedTipo;
       const searchMatch = query.length === 0 || text.includes(query);
-      return fitMatch && searchMatch;
+      return tipoMatch && searchMatch;
     });
   }
 
   function renderCard(item) {
-    const front = item.imagen_url || item.metadata.front;
-    const back = item.metadata.back;
+    const metadata = metadataFor(item);
+    const imageSrc = item.imagen_url || metadata.front || FALLBACK_IMAGE;
 
     return `
-      <article class="product-card" data-id="${item.id}" data-default-image="${front}" data-back-image="${back}">
-        <div class="card-image" style="--accent:${item.metadata.colors[0]};">
-          <div class="color-ring"></div>
-          <img class="front-image" src="${front}" alt="${item.equipo}" loading="lazy" />
-          <img class="back-image" src="${back}" alt="Vista trasera de ${item.equipo}" loading="lazy" />
-          <div class="image-tag">${item.metadata.collar} · ${item.metadata.sleeve}</div>
+      <article class="product-card" data-id="${escapeHtml(item.id)}">
+        <div class="card-image">
+          <img
+            src="${escapeHtml(imageSrc)}"
+            alt="${escapeHtml(item.equipo)}"
+            loading="lazy"
+            onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"
+          />
+          <span class="image-tag">${escapeHtml(item.tipo || "Sin tipo")}</span>
         </div>
         <div class="card-body">
-          <div class="card-badges">
-            <span>${item.metadata.fit}</span>
-            <span>${item.tipo || "Estilo libre"}</span>
-          </div>
-          <h2>${item.equipo}</h2>
-          <p>${item.descripcion || item.metadata.description}</p>
+          <h2>${escapeHtml(item.equipo)}</h2>
+          <p class="card-desc">${escapeHtml(item.descripcion || metadata.description)}</p>
           <div class="meta-row">
-            <span>${item.marca || "Marca libre"}</span>
-            <span class="code">#${item.id.slice(0, 8)}</span>
-          </div>
-          <div class="swatches">
-            ${item.metadata.colors.map((color) => `<button type="button" class="swatch" data-color="${color}" style="background:${color};"></button>`).join("")}
+            <span>${escapeHtml(item.marca || "Sin marca")}</span>
+            <span>${escapeHtml(item.temporada || "—")}</span>
           </div>
           <div class="action-row">
-            <a class="secondary-button" href="/editar/${item.id}">Editar</a>
-            <button type="button" class="primary-button">Añadir al carrito</button>
+            <a class="secondary-button" href="/editar/${escapeHtml(item.id)}">Editar</a>
+            <button type="button" class="danger-button" data-delete="${escapeHtml(item.id)}">Eliminar</button>
           </div>
         </div>
       </article>
     `;
   }
 
-  function renderPage() {
+  function renderCatalog() {
     const filtered = getFilteredItems();
-    const visible = filtered.slice(0, (page + 1) * ITEMS_PER_PAGE);
 
-    if (filtered.length === 0) {
-      contenedor.innerHTML = `<p class="empty-state">No hay camisetas que coincidan con los filtros.</p>`;
-      loadMore.style.display = "none";
-      cardCount.textContent = "0 modelos encontrados";
+    if (allItems.length === 0) {
+      contenedor.innerHTML = "";
+      emptyHint.hidden = false;
+      cardCount.textContent = "0 camisetas";
       return;
     }
 
-    contenedor.innerHTML = visible.map(renderCard).join("");
-    attachEvents();
-    cardCount.textContent = `${filtered.length} modelo${filtered.length === 1 ? "" : "s"}`;
-    loadMore.style.display = visible.length < filtered.length ? "inline-flex" : "none";
+    emptyHint.hidden = true;
+
+    if (filtered.length === 0) {
+      contenedor.innerHTML = `<p class="empty-state">No hay camisetas que coincidan con los filtros.</p>`;
+      cardCount.textContent = "0 resultados";
+      return;
+    }
+
+    contenedor.innerHTML = filtered.map(renderCard).join("");
+    attachDeleteHandlers();
+    cardCount.textContent = `${filtered.length} camiseta${filtered.length === 1 ? "" : "s"}`;
   }
 
-  function attachEvents() {
-    document.querySelectorAll(".product-card").forEach((card) => {
-      const swatches = card.querySelectorAll(".swatch");
-      const image = card.querySelector(".front-image");
-      const colorRing = card.querySelector(".color-ring");
-      const defaultImage = card.dataset.defaultImage;
+  function attachDeleteHandlers() {
+    document.querySelectorAll("[data-delete]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const camisetaId = btn.dataset.delete;
+        const item = allItems.find((c) => c.id === camisetaId);
+        const nombre = item?.equipo ?? "esta camiseta";
 
-      swatches.forEach((swatch) => {
-        swatch.addEventListener("click", () => {
-          const color = swatch.dataset.color;
-          image.src = defaultImage;
-          colorRing.style.boxShadow = `0 0 0 4px ${color}55`;
-          colorRing.style.background = color;
-        });
+        if (!confirm(`¿Eliminar "${nombre}" del catálogo?`)) return;
+
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) return;
+
+        const { error } = await supabase
+          .from("camisetas")
+          .delete()
+          .eq("id", camisetaId)
+          .eq("user_id", userData.user.id);
+
+        if (error) {
+          alert(`No se pudo eliminar: ${error.message}`);
+          return;
+        }
+
+        allItems = allItems.filter((c) => c.id !== camisetaId);
+        renderCatalog();
       });
     });
   }
 
-  function suggestSize() {
-    const height = Number(document.getElementById("height").value);
-    const weight = Number(document.getElementById("weight").value);
-    const preference = document.getElementById("fit-preference").value;
-
-    if (!height || !weight) {
-      sizeResult.textContent = "Ingresá altura y peso para obtener una sugerencia.";
-      return;
-    }
-
-    const bmi = weight / ((height / 100) * (height / 100));
-    let size = "M";
-
-    if (bmi < 20) size = "S";
-    else if (bmi < 25) size = "M";
-    else if (bmi < 28) size = "L";
-    else size = "XL";
-
-    if (preference === "Ajustado") {
-      size = size === "S" ? "XS" : size === "M" ? "S" : size === "M";
-    }
-    if (preference === "Sueltos") {
-      size = size === "XL" ? "XXL" : size === "L" ? "XL" : "L";
-    }
-
-    sizeResult.textContent = `Sugerencia: ${size} (${preference.toLowerCase()})`;
-  }
-
-  logoutBtn.addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  });
-
   refreshBtn.addEventListener("click", cargarCamisetas);
-  filterFit.addEventListener("change", () => { page = 0; renderPage(); });
-  searchInput.addEventListener("input", () => { page = 0; renderPage(); });
-  loadMore.addEventListener("click", () => { page += 1; renderPage(); });
-  calcSizeBtn.addEventListener("click", suggestSize);
+  filterTipo.addEventListener("change", renderCatalog);
+  searchInput.addEventListener("input", renderCatalog);
 
   cargarCamisetas();
 </script>
@@ -285,14 +226,15 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
 
   .primary-button,
   .secondary-button,
-  .icon-button,
-  .load-more,
-  #calc-size {
+  .danger-button,
+  .icon-button {
     border: 0;
     border-radius: 999px;
     cursor: pointer;
     font-weight: 700;
     transition: transform 180ms ease, background 180ms ease;
+    text-decoration: none;
+    font-size: 1rem;
   }
 
   .primary-button {
@@ -303,40 +245,44 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
 
   .primary-button:hover,
   .secondary-button:hover,
-  .icon-button:hover,
-  #calc-size:hover,
-  .load-more:hover {
+  .icon-button:hover {
     transform: translateY(-1px);
   }
 
   .secondary-button,
-  .icon-button,
-  .load-more {
+  .icon-button {
     padding: 14px 24px;
     background: rgba(17, 17, 17, 0.06);
     color: #111111;
   }
 
+  .danger-button {
+    padding: 14px 24px;
+    background: rgba(209, 47, 47, 0.1);
+    color: #b42318;
+  }
+
+  .danger-button:hover {
+    background: rgba(209, 47, 47, 0.18);
+  }
+
   .dashboard-panel {
     display: grid;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
     gap: 24px;
+    align-items: start;
   }
 
-  .side-panel {
-    display: grid;
-    gap: 24px;
-  }
-
-  .filter-card,
-  .recommender-card {
+  .filter-card {
     background: #ffffff;
     border-radius: 32px;
     padding: 28px;
     box-shadow: 0 30px 70px rgba(17, 17, 17, 0.08);
+    position: sticky;
+    top: 100px;
   }
 
-  .filter-card h2,
-  .recommender-card h2 {
+  .filter-card h2 {
     margin: 12px 0 22px;
     font-size: 1.65rem;
   }
@@ -360,27 +306,6 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
     font-size: 1rem;
   }
 
-  .tag-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 24px;
-  }
-
-  .badge {
-    display: inline-flex;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: rgba(17, 17, 17, 0.06);
-    color: #444444;
-    font-size: 0.92rem;
-  }
-
-  .recommender-grid {
-    display: grid;
-    gap: 18px;
-  }
-
   .catalog-frame {
     display: grid;
     gap: 20px;
@@ -400,7 +325,7 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
 
   .catalog-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 24px;
   }
 
@@ -420,60 +345,21 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
 
   .card-image {
     position: relative;
-    display: grid;
-    place-items: center;
-    min-height: 320px;
+    height: 280px;
     background: #f6f1e7;
-  }
-
-  .card-image::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, transparent 0%, rgba(17, 17, 17, 0.08) 100%);
-  }
-
-  .color-ring {
-    position: absolute;
-    top: 22px;
-    right: 22px;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.65);
-    box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.08);
-    background: var(--accent, #f2f1eb);
-    z-index: 2;
+    overflow: hidden;
   }
 
   .card-image img {
-    position: relative;
     width: 100%;
+    height: 100%;
     object-fit: cover;
-    transition: opacity 240ms ease, transform 240ms ease;
-  }
-
-  .card-image .back-image {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 240ms ease;
-  }
-
-  .product-card:hover .front-image {
-    opacity: 0;
-    transform: scale(1.03);
-  }
-
-  .product-card:hover .back-image {
-    opacity: 1;
   }
 
   .image-tag {
     position: absolute;
     left: 22px;
     bottom: 22px;
-    z-index: 2;
     background: rgba(255, 255, 255, 0.92);
     border-radius: 999px;
     padding: 10px 14px;
@@ -485,18 +371,7 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
   .card-body {
     padding: 26px;
     display: grid;
-    gap: 18px;
-  }
-
-  .card-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .card-badges span {
-    color: #777777;
-    font-size: 0.88rem;
+    gap: 14px;
   }
 
   h2 {
@@ -505,11 +380,11 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
     line-height: 1.1;
   }
 
-  .card-body p {
+  .card-desc {
     margin: 0;
     color: #5d5d5d;
     line-height: 1.75;
-    min-height: 56px;
+    min-height: 48px;
   }
 
   .meta-row {
@@ -520,81 +395,52 @@ import { fitOptions, metadataFor } from "../data/camisetas.js";
     font-size: 0.94rem;
   }
 
-  .code {
-    font-family: "Courier New", Courier, monospace;
-  }
-
-  .swatches {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .swatch {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(17, 17, 17, 0.08);
-    cursor: pointer;
-    transition: transform 180ms ease;
-  }
-
-  .swatch:hover {
-    transform: scale(1.08);
-  }
-
   .action-row {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    margin-top: 4px;
   }
 
   .secondary-button {
     flex: 1;
     text-align: center;
-    background: rgba(17, 17, 17, 0.06);
-    color: #111111;
     padding: 14px 18px;
   }
 
-  .primary-button {
+  .danger-button {
     flex: 1;
     text-align: center;
-    background: #111111;
-    color: #ffffff;
-    padding: 14px 18px;
   }
 
-  .load-more {
-    width: fit-content;
-    align-self: center;
-    padding: 14px 24px;
-    background: #111111;
-    color: #ffffff;
-  }
-
-  .empty-state {
+  .empty-state,
+  .empty-hint {
     grid-column: 1 / -1;
     padding: 54px 24px;
     border-radius: 28px;
     background: #fff8f1;
     color: #6b6b6b;
     text-align: center;
+    line-height: 1.75;
   }
 
-  @media (max-width: 980px) {
-    .dashboard-header,
-    .dashboard-panel {
-      grid-template-columns: 1fr;
-    }
+  .empty-hint a {
+    color: #111111;
+    font-weight: 700;
+  }
 
+  @media (max-width: 900px) {
     .dashboard-header {
       flex-direction: column;
       align-items: stretch;
     }
 
-    .dashboard-cta {
-      justify-content: flex-start;
+    .dashboard-panel {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-card {
+      position: static;
     }
   }
 </style>

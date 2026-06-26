@@ -22,6 +22,7 @@ import Layout from "../layouts/Layout.astro";
       </form>
 
       <p class="message" id="mensaje"></p>
+      <p class="footer-link">¿No tenés cuenta? <a href="/register">Registrate</a></p>
     </div>
   </section>
 </Layout>
@@ -124,5 +125,15 @@ import Layout from "../layouts/Layout.astro";
     min-height: 22px;
     color: #d12f2f;
     margin-top: 12px;
+  }
+
+  .footer-link {
+    margin-top: 20px;
+    color: #555555;
+  }
+
+  .footer-link a {
+    color: #111111;
+    font-weight: 700;
   }
 </style>
