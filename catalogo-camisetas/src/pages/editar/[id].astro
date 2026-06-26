@@ -1,73 +1,95 @@
 ---
 export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
-import { metadataFor } from "../../data/camisetas.js";
 const { id } = Astro.params;
 ---
 
 <Layout title="Editar camiseta">
   <section class="page-shell">
     <div class="page-header">
-      <span class="eyebrow">Editar modelo</span>
+      <span class="eyebrow">Editar camiseta</span>
       <h1>Modificá los detalles de la camiseta.</h1>
-      <p>Actualizá imagen, tipo o descripción. Si no hay imagen URL, se mostrará una vista previa local.</p>
+      <p>Actualizá equipo, temporada, tipo o imagen. Si la URL falla, se mostrará una imagen de respaldo.</p>
     </div>
 
     <div class="edit-grid">
       <form id="form-editar" class="product-form">
         <label>
-          Título
-          <input id="equipo" placeholder="Equipo" required />
+          Equipo
+          <input id="equipo" placeholder="Ej: Real Madrid" required />
         </label>
         <label>
-          Tipo / Corte
+          Temporada
+          <input id="temporada" placeholder="Ej: 2024/25" />
+        </label>
+        <label>
+          Tipo de equipación
           <select id="tipo">
             <option value="Titular">Titular</option>
             <option value="Suplente">Suplente</option>
-            <option value="Arquero">Arquero</option>
-            <option value="Oversized">Oversized</option>
-            <option value="Slim fit">Slim fit</option>
-            <option value="Boxy">Boxy</option>
+            <option value="Alternativa">Alternativa</option>
           </select>
         </label>
         <label>
           Marca
-          <input id="marca" placeholder="Marca" />
+          <input id="marca" placeholder="Ej: Adidas" />
         </label>
         <label>
           URL de imagen
-          <input id="imagen_url" placeholder="https://..." />
+          <input id="imagen_url" type="url" placeholder="https://..." />
         </label>
         <label>
           Descripción
           <textarea id="descripcion" placeholder="Descripción"></textarea>
         </label>
 
-        <button type="submit">Guardar cambios</button>
+        <div class="form-actions">
+          <button type="submit">Guardar cambios</button>
+          <a class="cancel-link" href="/dashboard">Cancelar</a>
+        </div>
         <p class="message" id="mensaje"></p>
       </form>
 
       <aside class="preview-card">
-        <span class="eyebrow">Vista rápida</span>
-        <img id="preview-image" src="/camisetas/front-slim.svg" alt="Preview de camiseta" />
+        <span class="eyebrow">Vista previa</span>
+        <div class="preview-image-wrap">
+          <img
+            id="preview-image"
+            src="/camisetas/front-slim.svg"
+            alt="Vista previa de camiseta"
+            onerror="this.onerror=null;this.src='/camisetas/front-slim.svg';"
+          />
+        </div>
         <div class="preview-meta">
-          <span id="preview-fit">Ajuste: Regular</span>
-          <span id="preview-collar">Cuello: Redondo</span>
+          <span id="preview-equipo">Equipo</span>
+          <span id="preview-tipo">Tipo: Titular</span>
         </div>
       </aside>
     </div>
   </section>
 </Layout>
 
-<script type="module">
+<script define:vars={{ id }} type="module">
   import { supabase } from "../../lib/supabase.js";
   import { metadataFor } from "../../data/camisetas.js";
+  import { isValidImageUrl, FALLBACK_IMAGE } from "../../lib/validation.js";
 
   const form = document.getElementById("form-editar");
   const mensaje = document.getElementById("mensaje");
   const previewImage = document.getElementById("preview-image");
-  const previewFit = document.getElementById("preview-fit");
-  const previewCollar = document.getElementById("preview-collar");
+  const previewEquipo = document.getElementById("preview-equipo");
+  const previewTipo = document.getElementById("preview-tipo");
+
+  function updatePreview() {
+    const equipo = document.getElementById("equipo").value.trim();
+    const tipo = document.getElementById("tipo").value;
+    const imagenUrl = document.getElementById("imagen_url").value.trim();
+    const metadata = metadataFor({ tipo });
+
+    previewEquipo.textContent = equipo || "Equipo";
+    previewTipo.textContent = `Tipo: ${tipo}`;
+    previewImage.src = imagenUrl || metadata.front || FALLBACK_IMAGE;
+  }
 
   async function cargarDatos() {
     const { data: userData } = await supabase.auth.getUser();
@@ -83,26 +105,34 @@ const { id } = Astro.params;
       .single();
 
     if (error || !data) {
-      mensaje.textContent = "No se encontró la camiseta.";
+      mensaje.textContent = "No se encontró la camiseta o no tenés permiso para editarla.";
       return;
     }
 
-    const metadata = metadataFor(data);
-    const imageUrl = data.imagen_url || metadata.front;
+    if (data.user_id !== userData.user.id) {
+      mensaje.textContent = "No tenés permiso para editar esta camiseta.";
+      form.querySelector("button[type='submit']").disabled = true;
+      return;
+    }
 
-    document.getElementById("equipo").value = data.equipo;
+    document.getElementById("equipo").value = data.equipo ?? "";
+    document.getElementById("temporada").value = data.temporada ?? "";
     document.getElementById("tipo").value = data.tipo || "Titular";
-    document.getElementById("marca").value = data.marca;
-    document.getElementById("imagen_url").value = data.imagen_url;
-    document.getElementById("descripcion").value = data.descripcion;
+    document.getElementById("marca").value = data.marca ?? "";
+    document.getElementById("imagen_url").value = data.imagen_url ?? "";
+    document.getElementById("descripcion").value = data.descripcion ?? "";
 
-    previewImage.src = imageUrl;
-    previewFit.textContent = `Ajuste: ${metadata.fit}`;
-    previewCollar.textContent = `Cuello: ${metadata.collar}`;
+    updatePreview();
   }
+
+  ["equipo", "tipo", "imagen_url"].forEach((fieldId) => {
+    document.getElementById(fieldId).addEventListener("input", updatePreview);
+    document.getElementById(fieldId).addEventListener("change", updatePreview);
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    mensaje.textContent = "";
 
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
@@ -110,21 +140,29 @@ const { id } = Astro.params;
       return;
     }
 
+    const imagenUrl = document.getElementById("imagen_url").value.trim();
+    if (!isValidImageUrl(imagenUrl)) {
+      mensaje.textContent = "La URL de imagen debe comenzar con http:// o https://.";
+      return;
+    }
+
     const actualizacion = {
-      equipo: document.getElementById("equipo").value,
+      equipo: document.getElementById("equipo").value.trim(),
+      temporada: document.getElementById("temporada").value.trim() || null,
       tipo: document.getElementById("tipo").value,
-      marca: document.getElementById("marca").value,
-      imagen_url: document.getElementById("imagen_url").value,
-      descripcion: document.getElementById("descripcion").value,
+      marca: document.getElementById("marca").value.trim() || null,
+      imagen_url: imagenUrl || null,
+      descripcion: document.getElementById("descripcion").value.trim() || null,
     };
 
     const { error } = await supabase
       .from("camisetas")
       .update(actualizacion)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", userData.user.id);
 
     if (error) {
-      mensaje.textContent = "Error al guardar los cambios.";
+      mensaje.textContent = error.message || "Error al guardar los cambios.";
     } else {
       window.location.href = "/dashboard";
     }
@@ -208,6 +246,13 @@ const { id } = Astro.params;
     resize: vertical;
   }
 
+  .form-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
   button {
     border: 0;
     border-radius: 999px;
@@ -216,7 +261,16 @@ const { id } = Astro.params;
     color: #ffffff;
     font-weight: 700;
     cursor: pointer;
-    width: fit-content;
+  }
+
+  .cancel-link {
+    color: #555555;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .cancel-link:hover {
+    color: #111111;
   }
 
   .preview-card {
@@ -227,12 +281,23 @@ const { id } = Astro.params;
     display: grid;
     gap: 22px;
     text-align: center;
+    align-self: start;
+  }
+
+  .preview-image-wrap {
+    height: 320px;
+    border-radius: 28px;
+    background: #f3efe5;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .preview-card img {
     width: 100%;
-    border-radius: 28px;
-    background: #f3efe5;
+    height: 100%;
+    object-fit: cover;
   }
 
   .preview-meta {
