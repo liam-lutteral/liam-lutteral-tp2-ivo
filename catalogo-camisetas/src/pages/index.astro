@@ -5,18 +5,23 @@ import Layout from "../layouts/Layout.astro";
 <Layout title="Catálogo de camisetas">
   <section class="hero">
     <div class="hero-copy">
-      <span class="eyebrow">Minimal streetwear</span>
-      <h1>Tu catálogo de camisetas con estilo limpio y potente.</h1>
-      <p>Visualizá tus modelos en una grilla elegante, guardá cada diseño y accedé a tu colección con una experiencia minimalista.</p>
+      <span class="eyebrow">Catálogo de fútbol</span>
+      <h1>Tu colección de camisetas, organizada y segura.</h1>
+      <p>Registrate, cargá tus equipaciones (titular, suplente o alternativa) y gestioná tu catálogo personal con autenticación Supabase y seguridad RLS.</p>
       <div class="hero-actions">
         <a class="primary" href="/register">Crear cuenta</a>
         <a class="secondary" href="/login">Iniciar sesión</a>
       </div>
+      <ul class="feature-list">
+        <li>CRUD completo por usuario</li>
+        <li>Imágenes por URL con respaldo automático</li>
+        <li>Filtros por equipo, marca y tipo</li>
+      </ul>
     </div>
 
     <div class="hero-preview">
       <div class="preview-card">
-        <span class="preview-label">Vista previa local</span>
+        <span class="preview-label">Vista previa</span>
         <img src="/camisetas/front-slim.svg" alt="Camiseta de catálogo" />
       </div>
     </div>
@@ -29,7 +34,7 @@ import Layout from "../layouts/Layout.astro";
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     align-items: center;
     gap: 3rem;
-    margin-top: 72px;
+    margin-top: 48px;
   }
 
   .hero-copy {
@@ -47,8 +52,8 @@ import Layout from "../layouts/Layout.astro";
 
   h1 {
     margin: 0;
-    font-size: clamp(2.8rem, 4vw, 4.4rem);
-    line-height: 1.02;
+    font-size: clamp(2.4rem, 4vw, 3.8rem);
+    line-height: 1.05;
     color: #111111;
   }
 
@@ -85,6 +90,13 @@ import Layout from "../layouts/Layout.astro";
   .secondary {
     background: rgba(17, 17, 17, 0.06);
     color: #111111;
+  }
+
+  .feature-list {
+    margin: 28px 0 0;
+    padding-left: 20px;
+    color: #555555;
+    line-height: 1.9;
   }
 
   .hero-preview {
