@@ -1,20 +1,32 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Registro">
-  <h1>Crear cuenta</h1>
+  <section class="auth-shell">
+    <div class="auth-card">
+      <span class="eyebrow">Registro</span>
+      <h1>Comenzá tu colección.</h1>
+      <p>Registrate rápido y mantené tu catálogo de camisetas organizado con una experiencia moderna.</p>
 
-  <form id="register-form">
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Contraseña" required />
-    <button type="submit">Registrarme</button>
-  </form>
+      <form id="register-form">
+        <label>
+          Email
+          <input type="email" id="email" placeholder="tucorreo@ejemplo.com" required />
+        </label>
+        <label>
+          Contraseña
+          <input type="password" id="password" placeholder="Contraseña" required />
+        </label>
+        <button type="submit">Registrarme</button>
+      </form>
 
-  <p id="mensaje"></p>
+      <p class="message" id="mensaje"></p>
+    </div>
+  </section>
 </Layout>
 
-<script>
+<script type="module">
   import { supabase } from "../lib/supabase.js";
 
   const form = document.getElementById("register-form");
@@ -38,3 +50,79 @@ import Layout from "../layouts/Layout.astro";
     }
   });
 </script>
+
+<style>
+  .auth-shell {
+    display: grid;
+    place-items: center;
+    min-height: 78vh;
+  }
+
+  .auth-card {
+    width: min(520px, 100%);
+    background: #ffffff;
+    border-radius: 34px;
+    padding: 42px 36px;
+    box-shadow: 0 26px 80px rgba(17, 17, 17, 0.08);
+  }
+
+  .eyebrow {
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: #7d7d7d;
+    font-size: 0.82rem;
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 2.6vw, 2.8rem);
+    line-height: 1.05;
+    color: #111111;
+  }
+
+  p {
+    margin: 18px 0 30px;
+    color: #555555;
+    line-height: 1.75;
+  }
+
+  form {
+    display: grid;
+    gap: 18px;
+  }
+
+  label {
+    display: grid;
+    gap: 10px;
+    color: #444444;
+    font-weight: 600;
+  }
+
+  input {
+    width: 100%;
+    border: 1px solid #e1dcd3;
+    background: #fbf8f2;
+    border-radius: 16px;
+    padding: 16px 18px;
+    font-size: 1rem;
+    color: #111111;
+  }
+
+  button {
+    border: 0;
+    border-radius: 999px;
+    padding: 16px 22px;
+    background: #111111;
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .message {
+    min-height: 22px;
+    color: #d12f2f;
+    margin-top: 12px;
+  }
+</style>

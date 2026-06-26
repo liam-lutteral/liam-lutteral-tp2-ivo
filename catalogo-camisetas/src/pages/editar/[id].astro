@@ -1,60 +1,256 @@
 ---
+export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
+import { metadataFor } from "../../data/camisetas.js";
 const { id } = Astro.params;
 ---
 
 <Layout title="Editar camiseta">
-  <h1>Editar camiseta</h1>
+  <section class="page-shell">
+    <div class="page-header">
+      <span class="eyebrow">Editar modelo</span>
+      <h1>Modificá los detalles de la camiseta.</h1>
+      <p>Actualizá imagen, tipo o descripción. Si no hay imagen URL, se mostrará una vista previa local.</p>
+    </div>
 
-  <form id="form-editar">
-    <input id="equipo" placeholder="Equipo" required />
-    <input id="temporada" placeholder="Temporada" />
-    <input id="tipo" placeholder="Tipo" />
-    <input id="marca" placeholder="Marca" />
-    <input id="imagen_url" placeholder="URL de imagen" />
-    <textarea id="descripcion" placeholder="Descripción"></textarea>
+    <div class="edit-grid">
+      <form id="form-editar" class="product-form">
+        <label>
+          Título
+          <input id="equipo" placeholder="Equipo" required />
+        </label>
+        <label>
+          Tipo / Corte
+          <select id="tipo">
+            <option value="Titular">Titular</option>
+            <option value="Suplente">Suplente</option>
+            <option value="Arquero">Arquero</option>
+            <option value="Oversized">Oversized</option>
+            <option value="Slim fit">Slim fit</option>
+            <option value="Boxy">Boxy</option>
+          </select>
+        </label>
+        <label>
+          Marca
+          <input id="marca" placeholder="Marca" />
+        </label>
+        <label>
+          URL de imagen
+          <input id="imagen_url" placeholder="https://..." />
+        </label>
+        <label>
+          Descripción
+          <textarea id="descripcion" placeholder="Descripción"></textarea>
+        </label>
 
-    <button type="submit">Guardar cambios</button>
-  </form>
+        <button type="submit">Guardar cambios</button>
+        <p class="message" id="mensaje"></p>
+      </form>
+
+      <aside class="preview-card">
+        <span class="eyebrow">Vista rápida</span>
+        <img id="preview-image" src="/camisetas/front-slim.svg" alt="Preview de camiseta" />
+        <div class="preview-meta">
+          <span id="preview-fit">Ajuste: Regular</span>
+          <span id="preview-collar">Cuello: Redondo</span>
+        </div>
+      </aside>
+    </div>
+  </section>
 </Layout>
 
-<script define:vars={{ id }}>
+<script type="module">
   import { supabase } from "../../lib/supabase.js";
+  import { metadataFor } from "../../data/camisetas.js";
 
   const form = document.getElementById("form-editar");
+  const mensaje = document.getElementById("mensaje");
+  const previewImage = document.getElementById("preview-image");
+  const previewFit = document.getElementById("preview-fit");
+  const previewCollar = document.getElementById("preview-collar");
 
   async function cargarDatos() {
-    const { data } = await supabase
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const { data, error } = await supabase
       .from("camisetas")
       .select("*")
       .eq("id", id)
       .single();
 
+    if (error || !data) {
+      mensaje.textContent = "No se encontró la camiseta.";
+      return;
+    }
+
+    const metadata = metadataFor(data);
+    const imageUrl = data.imagen_url || metadata.front;
+
     document.getElementById("equipo").value = data.equipo;
-    document.getElementById("temporada").value = data.temporada;
-    document.getElementById("tipo").value = data.tipo;
+    document.getElementById("tipo").value = data.tipo || "Titular";
     document.getElementById("marca").value = data.marca;
     document.getElementById("imagen_url").value = data.imagen_url;
     document.getElementById("descripcion").value = data.descripcion;
+
+    previewImage.src = imageUrl;
+    previewFit.textContent = `Ajuste: ${metadata.fit}`;
+    previewCollar.textContent = `Cuello: ${metadata.collar}`;
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    await supabase
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const actualizacion = {
+      equipo: document.getElementById("equipo").value,
+      tipo: document.getElementById("tipo").value,
+      marca: document.getElementById("marca").value,
+      imagen_url: document.getElementById("imagen_url").value,
+      descripcion: document.getElementById("descripcion").value,
+    };
+
+    const { error } = await supabase
       .from("camisetas")
-      .update({
-        equipo: document.getElementById("equipo").value,
-        temporada: document.getElementById("temporada").value,
-        tipo: document.getElementById("tipo").value,
-        marca: document.getElementById("marca").value,
-        imagen_url: document.getElementById("imagen_url").value,
-        descripcion: document.getElementById("descripcion").value,
-      })
+      .update(actualizacion)
       .eq("id", id);
 
-    window.location.href = "/dashboard";
+    if (error) {
+      mensaje.textContent = "Error al guardar los cambios.";
+    } else {
+      window.location.href = "/dashboard";
+    }
   });
 
   cargarDatos();
 </script>
+
+<style>
+  .page-shell {
+    display: grid;
+    gap: 32px;
+    padding: 18px 0 0;
+    max-width: 980px;
+  }
+
+  .page-header {
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 34px;
+    box-shadow: 0 30px 60px rgba(17, 17, 17, 0.08);
+  }
+
+  .eyebrow {
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    font-size: 0.82rem;
+    color: #7d7d7d;
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 2.8rem);
+    color: #111111;
+  }
+
+  p {
+    margin-top: 16px;
+    color: #555555;
+    line-height: 1.75;
+  }
+
+  .edit-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
+    gap: 28px;
+  }
+
+  .product-form {
+    display: grid;
+    gap: 18px;
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 32px;
+    box-shadow: 0 26px 70px rgba(17, 17, 17, 0.08);
+  }
+
+  label {
+    display: grid;
+    gap: 10px;
+    color: #444444;
+    font-weight: 600;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid #e3dcd2;
+    background: #fbf8f2;
+    border-radius: 16px;
+    padding: 16px 18px;
+    font-size: 1rem;
+    color: #111111;
+  }
+
+  textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+
+  button {
+    border: 0;
+    border-radius: 999px;
+    padding: 16px 20px;
+    background: #111111;
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+    width: fit-content;
+  }
+
+  .preview-card {
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 32px;
+    box-shadow: 0 26px 70px rgba(17, 17, 17, 0.08);
+    display: grid;
+    gap: 22px;
+    text-align: center;
+  }
+
+  .preview-card img {
+    width: 100%;
+    border-radius: 28px;
+    background: #f3efe5;
+  }
+
+  .preview-meta {
+    display: grid;
+    gap: 12px;
+    color: #555555;
+    font-weight: 600;
+  }
+
+  .message {
+    color: #d12f2f;
+    margin-top: 8px;
+    min-height: 22px;
+  }
+
+  @media (max-width: 840px) {
+    .edit-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

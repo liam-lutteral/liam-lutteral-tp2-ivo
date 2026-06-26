@@ -1,0 +1,15 @@
+<svg width="600" height="750" viewBox="0 0 600 750" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="oversizedGrad" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#323232" />
+      <stop offset="100%" stop-color="#111111" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="750" rx="60" fill="#f5f1e9" />
+  <path d="M140 120 C140 90 190 90 190 120 L190 220 C190 260 140 260 140 220 Z" fill="#111" />
+  <path d="M460 120 C460 90 410 90 410 120 L410 220 C410 260 460 260 460 220 Z" fill="#111" />
+  <path d="M140 220 L140 560 C140 620 175 680 210 680 H390 C425 680 460 620 460 560 L460 220 Z" fill="url(#oversizedGrad)" />
+  <path d="M170 310 H430" stroke="#e8e2d7" stroke-width="24" stroke-linecap="round" />
+  <path d="M170 410 H430" stroke="#e8e2d7" stroke-width="24" stroke-linecap="round" />
+  <path d="M170 510 H430" stroke="#e8e2d7" stroke-width="24" stroke-linecap="round" />
+</svg>
