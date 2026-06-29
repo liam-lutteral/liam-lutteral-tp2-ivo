@@ -65,6 +65,7 @@ import { tipoOptions } from "../data/camisetas.js";
   const emptyHint = document.getElementById("empty-hint");
 
   let allItems = [];
+  let debounceTimer;
 
   async function cargarCamisetas() {
     const { data: userData } = await supabase.auth.getUser();
@@ -87,6 +88,11 @@ import { tipoOptions } from "../data/camisetas.js";
 
     allItems = data ?? [];
     renderCatalog();
+  }
+
+  function debounceRender() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(renderCatalog, 300);
   }
 
   function getFilteredItems() {
@@ -186,7 +192,7 @@ import { tipoOptions } from "../data/camisetas.js";
 
   refreshBtn.addEventListener("click", cargarCamisetas);
   filterTipo.addEventListener("change", renderCatalog);
-  searchInput.addEventListener("input", renderCatalog);
+  searchInput.addEventListener("input", debounceRender);
 
   cargarCamisetas();
 </script>

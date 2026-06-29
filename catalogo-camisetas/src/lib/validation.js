@@ -6,6 +6,11 @@ export function isValidImageUrl(url) {
   return /^https?:\/\//i.test(trimmed);
 }
 
+export function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 export function escapeHtml(str) {
   if (!str) return "";
   return String(str)

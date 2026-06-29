@@ -29,25 +29,54 @@ import Layout from "../layouts/Layout.astro";
 
 <script type="module">
   import { supabase } from "../lib/supabase.js";
+  import { isValidEmail } from "../lib/validation.js";
 
   const form = document.getElementById("login-form");
   const mensaje = document.getElementById("mensaje");
+
+  if (!supabase) {
+    mensaje.textContent = "Error: Supabase no está configurado. Verificá las variables de entorno.";
+    form.querySelector("button[type='submit']").disabled = true;
+  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
+    const button = form.querySelector("button[type='submit']");
+    const originalText = button.textContent;
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    if (!isValidEmail(email)) {
+      mensaje.textContent = "Por favor ingresá un email válido.";
+      return;
+    }
 
-    if (error) {
-      mensaje.textContent = error.message;
-    } else {
-      window.location.href = "/dashboard";
+    button.disabled = true;
+    button.textContent = "Iniciando sesión...";
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      button.disabled = false;
+      button.textContent = originalText;
+
+      if (error) {
+        mensaje.textContent = error.message;
+      } else {
+        if (data.session) {
+          window.location.href = "/dashboard";
+        } else {
+          mensaje.textContent = "Error: No se pudo establecer la sesión. Intentá nuevamente.";
+        }
+      }
+    } catch (err) {
+      button.disabled = false;
+      button.textContent = originalText;
+      mensaje.textContent = "Error de conexión con Supabase. Verificá tu conexión a internet.";
     }
   });
 </script>
