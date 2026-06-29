@@ -29,67 +29,25 @@ import Layout from "../layouts/Layout.astro";
 
 <script type="module">
   import { supabase } from "../lib/supabase.js";
-  import { isValidEmail } from "../lib/validation.js";
 
   const form = document.getElementById("register-form");
   const mensaje = document.getElementById("mensaje");
-
-  if (!supabase) {
-    mensaje.textContent = "Error: Supabase no está configurado. Verificá las variables de entorno.";
-    form.querySelector("button[type='submit']").disabled = true;
-  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-    const button = form.querySelector("button[type='submit']");
-    const originalText = button.textContent;
 
-    if (!isValidEmail(email)) {
-      mensaje.textContent = "Por favor ingresá un email válido.";
-      return;
-    }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    button.disabled = true;
-    button.textContent = "Registrando...";
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      button.disabled = false;
-      button.textContent = originalText;
-
-      if (error) {
-        if (error.message.includes("already registered") || error.message.includes("User already registered")) {
-          mensaje.textContent = "Este email ya está registrado. Iniciá sesión o usá otro email.";
-        } else {
-          mensaje.textContent = error.message;
-        }
-      } else {
-        if (data.session) {
-          window.location.href = "/dashboard";
-        } else {
-          const { error: loginError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          
-          if (loginError) {
-            mensaje.textContent = "Cuenta creada. Revisá tu mail para confirmar o iniciá sesión.";
-          } else {
-            window.location.href = "/dashboard";
-          }
-        }
-      }
-    } catch (err) {
-      button.disabled = false;
-      button.textContent = originalText;
-      mensaje.textContent = "Error de conexión con Supabase. Verificá tu conexión a internet.";
+    if (error) {
+      mensaje.textContent = error.message;
+    } else {
+      mensaje.textContent = "Cuenta creada. Revisá tu mail o iniciá sesión.";
     }
   });
 </script>

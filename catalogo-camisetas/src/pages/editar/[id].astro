@@ -16,11 +16,11 @@ const { id } = Astro.params;
       <form id="form-editar" class="product-form">
         <label>
           Equipo
-          <input id="equipo" placeholder="Ej: Real Madrid" required maxlength="255" />
+          <input id="equipo" placeholder="Ej: Real Madrid" required />
         </label>
         <label>
           Temporada
-          <input id="temporada" placeholder="Ej: 2024/25" maxlength="50" />
+          <input id="temporada" placeholder="Ej: 2024/25" />
         </label>
         <label>
           Tipo de equipación
@@ -32,7 +32,7 @@ const { id } = Astro.params;
         </label>
         <label>
           Marca
-          <input id="marca" placeholder="Ej: Adidas" maxlength="100" />
+          <input id="marca" placeholder="Ej: Adidas" />
         </label>
         <label>
           URL de imagen
@@ -91,18 +91,7 @@ const { id } = Astro.params;
     previewImage.src = imagenUrl || metadata.front || FALLBACK_IMAGE;
   }
 
-  function isValidUUID(uuid) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
-  }
-
   async function cargarDatos() {
-    if (!isValidUUID(id)) {
-      mensaje.textContent = "ID inválido. Redirigiendo al dashboard...";
-      setTimeout(() => window.location.href = "/dashboard", 2000);
-      return;
-    }
-
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       window.location.href = "/login";
@@ -145,25 +134,15 @@ const { id } = Astro.params;
     e.preventDefault();
     mensaje.textContent = "";
 
-    const button = form.querySelector("button[type='submit']");
-    const originalText = button.textContent;
-
-    button.disabled = true;
-    button.textContent = "Guardando cambios...";
-
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       window.location.href = "/login";
-      button.disabled = false;
-      button.textContent = originalText;
       return;
     }
 
     const imagenUrl = document.getElementById("imagen_url").value.trim();
     if (!isValidImageUrl(imagenUrl)) {
       mensaje.textContent = "La URL de imagen debe comenzar con http:// o https://.";
-      button.disabled = false;
-      button.textContent = originalText;
       return;
     }
 
@@ -181,9 +160,6 @@ const { id } = Astro.params;
       .update(actualizacion)
       .eq("id", id)
       .eq("user_id", userData.user.id);
-
-    button.disabled = false;
-    button.textContent = originalText;
 
     if (error) {
       mensaje.textContent = error.message || "Error al guardar los cambios.";

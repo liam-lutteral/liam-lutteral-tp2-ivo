@@ -1,4 +1,3 @@
 .env
-catalogo-camisetas/.env.local
-
-.vercel
+/catalogo-camisetas/.vercel
+/.vercel

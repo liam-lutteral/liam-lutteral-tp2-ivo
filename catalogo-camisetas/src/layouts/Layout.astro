@@ -16,7 +16,6 @@ const { title } = Astro.props;
         <div class="nav-links" id="nav-links">
           <a href="/login" data-nav="guest">Iniciar sesión</a>
           <a href="/register" data-nav="guest">Registro</a>
-          <span id="user-email" data-nav="auth" hidden></span>
           <a href="/dashboard" data-nav="auth" hidden>Mi catálogo</a>
           <a href="/nueva" data-nav="auth" hidden>Nueva camiseta</a>
           <button type="button" id="nav-logout" data-nav="auth" hidden>Cerrar sesión</button>
@@ -35,7 +34,6 @@ const { title } = Astro.props;
   const guestLinks = document.querySelectorAll('[data-nav="guest"]');
   const authLinks = document.querySelectorAll('[data-nav="auth"]');
   const logoutBtn = document.getElementById("nav-logout");
-  const userEmail = document.getElementById("user-email");
 
   async function updateNav() {
     const { data } = await supabase.auth.getSession();
@@ -43,10 +41,6 @@ const { title } = Astro.props;
 
     guestLinks.forEach((el) => { el.hidden = isLoggedIn; });
     authLinks.forEach((el) => { el.hidden = !isLoggedIn; });
-
-    if (isLoggedIn && userEmail && data.session?.user?.email) {
-      userEmail.textContent = data.session.user.email;
-    }
   }
 
   logoutBtn?.addEventListener("click", async () => {
@@ -108,15 +102,6 @@ const { title } = Astro.props;
     flex-wrap: wrap;
     gap: 18px;
     align-items: center;
-  }
-
-  #user-email {
-    color: #111111;
-    font-weight: 600;
-    font-size: 0.95rem;
-    padding: 8px 16px;
-    background: rgba(17, 17, 17, 0.06);
-    border-radius: 999px;
   }
 
   .topnav a {
