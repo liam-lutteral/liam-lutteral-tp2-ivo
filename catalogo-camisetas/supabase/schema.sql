@@ -1,5 +1,3 @@
--- Ejecutar en el SQL Editor de Supabase
-
 create table if not exists public.camisetas (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,

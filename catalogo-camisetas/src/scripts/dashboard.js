@@ -1,4 +1,5 @@
-import { supabase } from "../lib/supabase.js";
+import { supabase, withTimeout } from "../lib/supabase.js";
+import { getUser } from "../lib/auth.js";
 import { metadataFor } from "../data/camisetas.js";
 import { escapeHtml, FALLBACK_IMAGE } from "../lib/validation.js";
 
@@ -12,26 +13,38 @@ const emptyHint = document.getElementById("empty-hint");
 let allItems = [];
 
 async function cargarCamisetas() {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) {
-    window.location.href = "/login";
-    return;
-  }
+  try {
+    const user = await withTimeout(getUser());
+    if (!user) {
+      console.log("[dashboard] sin sesión, redirigiendo a /login");
+      window.location.href = "/login";
+      return;
+    }
 
-  const { data, error } = await supabase
-    .from("camisetas")
-    .select("*")
-    .eq("user_id", userData.user.id)
-    .order("equipo", { ascending: true });
+    console.log("[dashboard] cargando camisetas para usuario", user.id);
+    const { data, error } = await withTimeout(
+      supabase
+        .from("camisetas")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("equipo", { ascending: true })
+    );
 
-  if (error) {
-    contenedor.innerHTML = `<p class="empty-state">Error al cargar: ${escapeHtml(error.message)}</p>`;
+    if (error) {
+      console.error("[dashboard] error al cargar camisetas:", error.message, error);
+      contenedor.innerHTML = `<p class="empty-state">Error al cargar: ${escapeHtml(error.message)}</p>`;
+      cardCount.textContent = "Error";
+      return;
+    }
+
+    allItems = data ?? [];
+    console.log("[dashboard] camisetas cargadas:", allItems.length);
+    renderCatalog();
+  } catch (err) {
+    console.error("[dashboard] error:", err.message, err);
+    contenedor.innerHTML = `<p class="empty-state">${escapeHtml(err.message || "Error de conexión.")}</p>`;
     cardCount.textContent = "Error";
-    return;
   }
-
-  allItems = data ?? [];
-  renderCatalog();
 }
 
 function getFilteredItems() {
@@ -109,22 +122,31 @@ function attachDeleteHandlers() {
 
       if (!confirm(`¿Eliminar "${nombre}" del catálogo?`)) return;
 
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      try {
+        const user = await withTimeout(getUser());
+        if (!user) return;
 
-      const { error } = await supabase
-        .from("camisetas")
-        .delete()
-        .eq("id", camisetaId)
-        .eq("user_id", userData.user.id);
+        const { error } = await withTimeout(
+          supabase
+            .from("camisetas")
+            .delete()
+            .eq("id", camisetaId)
+            .eq("user_id", user.id)
+        );
 
-      if (error) {
-        alert(`No se pudo eliminar: ${error.message}`);
-        return;
+        if (error) {
+          console.error("[dashboard] error al eliminar:", error.message, error);
+          alert(`No se pudo eliminar: ${error.message}`);
+          return;
+        }
+
+        console.log("[dashboard] camiseta eliminada:", camisetaId);
+        allItems = allItems.filter((c) => c.id !== camisetaId);
+        renderCatalog();
+      } catch (err) {
+        console.error("[dashboard] error al eliminar:", err.message, err);
+        alert(err.message || "Error de conexión al eliminar.");
       }
-
-      allItems = allItems.filter((c) => c.id !== camisetaId);
-      renderCatalog();
     });
   });
 }
