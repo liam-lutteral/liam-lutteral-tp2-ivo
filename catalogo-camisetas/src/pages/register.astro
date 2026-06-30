@@ -96,6 +96,21 @@ import Layout from "../layouts/Layout.astro";
     color: #ffffff;
     font-weight: 700;
     cursor: pointer;
+    transition: transform 150ms ease, background 200ms ease, opacity 200ms ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+  }
+
+  button:active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
   }
 
   .message {
