@@ -18,6 +18,7 @@ const { title } = Astro.props;
           <a href="/register" data-nav="guest">Registro</a>
           <a href="/dashboard" data-nav="auth" hidden>Mi catálogo</a>
           <a href="/nueva" data-nav="auth" hidden>Nueva camiseta</a>
+          <span id="nav-email" data-nav="auth" hidden class="nav-email"></span>
           <button type="button" id="nav-logout" data-nav="auth" hidden>Cerrar sesión</button>
         </div>
       </nav>
@@ -91,6 +92,17 @@ const { title } = Astro.props;
 
   .topnav a:hover {
     color: #111111;
+  }
+
+  .nav-email {
+    color: #7d7d7d;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0 4px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   #nav-logout {
