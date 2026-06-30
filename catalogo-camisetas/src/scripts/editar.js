@@ -59,6 +59,8 @@ async function cargarDatos() {
   document.getElementById(fieldId).addEventListener("change", updatePreview);
 });
 
+const submitBtn = form?.querySelector("button[type='submit']");
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   mensaje.textContent = "";
@@ -73,6 +75,11 @@ form.addEventListener("submit", async (e) => {
   if (!isValidImageUrl(imagenUrl)) {
     mensaje.textContent = "La URL de imagen debe comenzar con http:// o https://.";
     return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Guardando...";
   }
 
   const actualizacion = {
@@ -92,6 +99,10 @@ form.addEventListener("submit", async (e) => {
 
   if (error) {
     mensaje.textContent = error.message || "Error al guardar los cambios.";
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Guardar cambios";
+    }
   } else {
     window.location.href = "/dashboard";
   }

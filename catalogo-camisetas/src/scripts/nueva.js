@@ -3,6 +3,7 @@ import { isValidImageUrl } from "../lib/validation.js";
 
 const form = document.getElementById("form-camiseta");
 const mensaje = document.getElementById("mensaje");
+const submitBtn = form?.querySelector("button[type='submit']");
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -20,6 +21,11 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Guardando...";
+  }
+
   const nuevaCamiseta = {
     user_id: userData.user.id,
     equipo: document.getElementById("equipo").value.trim(),
@@ -34,6 +40,10 @@ form.addEventListener("submit", async (e) => {
 
   if (error) {
     mensaje.textContent = error.message || "Error al guardar.";
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Guardar camiseta";
+    }
   } else {
     window.location.href = "/dashboard";
   }
