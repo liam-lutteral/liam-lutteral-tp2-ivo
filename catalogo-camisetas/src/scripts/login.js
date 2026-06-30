@@ -1,4 +1,5 @@
-import { supabase } from "../lib/supabase.js";
+import { signIn } from "../lib/auth.js";
+import { withTimeout } from "../lib/supabase.js";
 
 const form = document.getElementById("login-form");
 const mensaje = document.getElementById("mensaje");
@@ -16,18 +17,18 @@ form.addEventListener("submit", async (e) => {
   }
   mensaje.textContent = "";
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    mensaje.textContent = error.message;
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Entrar";
-    }
-  } else {
+  try {
+    console.log("[login] intentando login con", { email: email.replace(/^(.)(.*)(@.*)$/, "$1***$3") });
+    await withTimeout(signIn(email, password));
+    console.log("[login] login exitoso, redirigiendo a /dashboard");
     window.location.href = "/dashboard";
+  } catch (err) {
+    console.error("[login] error:", err.message, err);
+    mensaje.textContent = err.message || "Error de conexión. Intentá de nuevo.";
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Entrar";
   }
 });

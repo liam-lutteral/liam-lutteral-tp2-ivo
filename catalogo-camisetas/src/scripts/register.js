@@ -1,4 +1,5 @@
-import { supabase } from "../lib/supabase.js";
+import { signUp } from "../lib/auth.js";
+import { withTimeout } from "../lib/supabase.js";
 
 const form = document.getElementById("register-form");
 const mensaje = document.getElementById("mensaje");
@@ -16,15 +17,14 @@ form.addEventListener("submit", async (e) => {
   }
   mensaje.textContent = "";
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (error) {
-    mensaje.textContent = error.message;
-  } else {
+  try {
+    console.log("[register] intentando registrar", { email: email.replace(/^(.)(.*)(@.*)$/, "$1***$3") });
+    await withTimeout(signUp(email, password));
+    console.log("[register] registro exitoso");
     mensaje.textContent = "Cuenta creada. Revisá tu mail o iniciá sesión.";
+  } catch (err) {
+    console.error("[register] error:", err.message, err);
+    mensaje.textContent = err.message || "Error de conexión. Intentá de nuevo.";
   }
 
   if (submitBtn) {

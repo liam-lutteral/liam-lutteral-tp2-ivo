@@ -1,4 +1,5 @@
-import { supabase } from "../lib/supabase.js";
+import { supabase, withTimeout } from "../lib/supabase.js";
+import { getUser } from "../lib/auth.js";
 import { isValidImageUrl } from "../lib/validation.js";
 
 const form = document.getElementById("form-camiseta");
@@ -9,8 +10,17 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   mensaje.textContent = "";
 
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) {
+  let user;
+  try {
+    user = await withTimeout(getUser());
+  } catch (err) {
+    console.error("[nueva] error al obtener usuario:", err.message, err);
+    mensaje.textContent = err.message || "Error de conexión. Verificá tu conexión e intentá de nuevo.";
+    return;
+  }
+
+  if (!user) {
+    console.log("[nueva] sin sesión, redirigiendo a /login");
     window.location.href = "/login";
     return;
   }
@@ -27,7 +37,7 @@ form.addEventListener("submit", async (e) => {
   }
 
   const nuevaCamiseta = {
-    user_id: userData.user.id,
+    user_id: user.id,
     equipo: document.getElementById("equipo").value.trim(),
     temporada: document.getElementById("temporada").value.trim() || null,
     tipo: document.getElementById("tipo").value,
@@ -36,15 +46,26 @@ form.addEventListener("submit", async (e) => {
     descripcion: document.getElementById("descripcion").value.trim() || null,
   };
 
-  const { error } = await supabase.from("camisetas").insert([nuevaCamiseta]);
+  try {
+    const { error } = await withTimeout(
+      supabase.from("camisetas").insert([nuevaCamiseta])
+    );
 
-  if (error) {
-    mensaje.textContent = error.message || "Error al guardar.";
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Guardar camiseta";
+    if (error) {
+      console.error("[nueva] error al guardar:", error.message, error);
+      mensaje.textContent = error.message || "Error al guardar.";
+    } else {
+      console.log("[nueva] camiseta creada, redirigiendo a /dashboard");
+      window.location.href = "/dashboard";
+      return;
     }
-  } else {
-    window.location.href = "/dashboard";
+  } catch (err) {
+    console.error("[nueva] error al guardar:", err.message, err);
+    mensaje.textContent = err.message || "Error de conexión al guardar.";
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Guardar camiseta";
   }
 });
