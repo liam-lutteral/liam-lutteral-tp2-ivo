@@ -95,6 +95,36 @@ npm run preview
 
 ---
 
+## Tests
+
+### Unitarios (Vitest)
+
+```bash
+npm test
+```
+
+### E2E (Playwright)
+
+```bash
+npm run test:e2e
+```
+
+El test E2E ejercita el flujo crítico (registro, login, crear/eliminar camiseta) contra el **backend real de Supabase**, por lo que requiere:
+
+- Credenciales válidas en `.env` (las mismas de desarrollo).
+- Un **dominio de email aceptado** por el proyecto Supabase. Si el proyecto tiene allowlist de dominios, configurá uno permitido:
+  ```bash
+  E2E_TEST_EMAIL="mi-email@dominio-permitido.com" npm run test:e2e
+  ```
+  Por defecto se genera `test-<timestamp>@gmail.com`.
+
+Notas:
+
+- Si el proyecto tiene **"Confirm email" activado** (configuración por defecto en Supabase), el test verifica el registro y **saltea** el CRUD con un mensaje claro: el login no es posible hasta confirmar el mail.
+- El plan free de Supabase limita los mails de confirmación por hora. Si el test salta por "rate limit", esperá ~1 hora o usá un proyecto con autoconfirm activado.
+
+---
+
 ## Notas de seguridad (RLS)
 
 Para que el sistema sea realmente seguro, configura **Row Level Security (RLS)** en Supabase.

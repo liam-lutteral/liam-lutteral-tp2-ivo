@@ -6,24 +6,38 @@ const form = document.getElementById("form-camiseta");
 const mensaje = document.getElementById("mensaje");
 const submitBtn = form?.querySelector("button[type='submit']");
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  mensaje.textContent = "";
-
+/**
+ * Verifica la sesión y redirige a /login si no hay usuario autenticado.
+ * Retorna el usuario o null (si no hay sesión o hubo un error).
+ */
+async function obtenerUsuarioOIrAlLogin() {
   let user;
   try {
     user = await withTimeout(getUser());
   } catch (err) {
     console.error("[nueva] error al obtener usuario:", err.message, err);
     mensaje.textContent = err.message || "Error de conexión. Verificá tu conexión e intentá de nuevo.";
-    return;
+    return null;
   }
 
   if (!user) {
     console.log("[nueva] sin sesión, redirigiendo a /login");
     window.location.href = "/login";
-    return;
+    return null;
   }
+
+  return user;
+}
+
+// Guard de sesión al entrar a la página (igual que dashboard y editar)
+obtenerUsuarioOIrAlLogin();
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  mensaje.textContent = "";
+
+  const user = await obtenerUsuarioOIrAlLogin();
+  if (!user) return;
 
   const imagenUrl = document.getElementById("imagen_url").value.trim();
   if (!isValidImageUrl(imagenUrl)) {

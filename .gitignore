@@ -1,3 +1,6 @@
 .env
+.env.backup
+.env.*
+!catalogo-camisetas/.env.example
 /catalogo-camisetas/.vercel
 /.vercel

@@ -49,7 +49,8 @@ export async function signOut() {
 
 /**
  * Obtener el usuario autenticado actual.
- * Retorna null si no hay sesión activa.
+ * Retorna null si no hay sesión activa (o el token expiró y no se pudo renovar),
+ * para que las páginas redirijan a /login en lugar de quedarse trabadas.
  */
 export async function getUser() {
   console.log("[auth] getUser");
@@ -57,6 +58,11 @@ export async function getUser() {
 
   if (error) {
     console.error("[auth] getUser ERROR:", error.message, error);
+    // Sesión inexistente, token expirado o refresh inválido ⇒ equivalente a "sin sesión".
+    // Otros errores (red, backend caído) sí se propagan para mostrarlos al usuario.
+    if (/auth session|jwt|token|expired|refresh/i.test(error.message)) {
+      return null;
+    }
     throw error;
   }
 

@@ -21,6 +21,8 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:4321',
     reuseExistingServer: !process.env.CI,
-    cwd: './catalogo-camisetas',
+    // El archivo de config vive dentro de catalogo-camisetas/, por lo que
+    // el cwd del webServer se resuelve relativo a esta carpeta.
+    cwd: '.',
   },
 });
