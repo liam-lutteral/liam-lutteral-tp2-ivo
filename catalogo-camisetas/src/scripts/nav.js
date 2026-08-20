@@ -1,4 +1,4 @@
-import { signOut, getSession } from "../lib/auth.js";
+import { signOut, getUser } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 
 const guestLinks = document.querySelectorAll('[data-nav="guest"]');
@@ -7,8 +7,8 @@ const logoutBtn = document.getElementById("nav-logout");
 
 async function updateNav() {
   try {
-    const session = await getSession();
-    const isLoggedIn = Boolean(session);
+    const user = await getUser();
+    const isLoggedIn = Boolean(user);
 
     // Sin sesión: "Iniciar sesión" y "Registro".
     // Con sesión: "Bienvenido" + "Cerrar sesión" + links del catálogo.
@@ -19,19 +19,24 @@ async function updateNav() {
       el.hidden = !isLoggedIn;
     });
   } catch (err) {
-    console.error("[nav] error al actualizar navbar:", err.message, err);
+    // Silently ignore nav update errors — the page content handles its own auth.
   }
 }
 
 logoutBtn?.addEventListener("click", async () => {
   try {
-    console.log("[nav] cerrando sesión");
     await signOut();
     window.location.href = "/";
   } catch (err) {
-    console.error("[nav] error al cerrar sesión:", err.message, err);
+    // Logout failed — best-effort redirect anyway.
+    window.location.href = "/";
   }
 });
 
-supabase.auth.onAuthStateChange(updateNav);
+const { data: { subscription } } = supabase.auth.onAuthStateChange(updateNav);
 updateNav();
+
+// Clean up listener if Astro View Transitions swap the page.
+document.addEventListener("astro:before-swap", () => {
+  subscription.unsubscribe();
+});

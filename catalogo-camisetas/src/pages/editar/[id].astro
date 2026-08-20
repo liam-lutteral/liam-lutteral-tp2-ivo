@@ -69,7 +69,7 @@ const { id } = Astro.params;
   </section>
 </Layout>
 
-<script is:inline>window.__CAMISETA_ID__ = "{id}";</script>
+<script is:inline set:html={`window.__CAMISETA_ID__ = ${JSON.stringify(id)};`} />
 <script src="../../scripts/editar.js"></script>
 
 <style>

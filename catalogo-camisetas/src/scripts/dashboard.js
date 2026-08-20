@@ -1,7 +1,7 @@
 import { supabase, withTimeout } from "../lib/supabase.js";
 import { getUser } from "../lib/auth.js";
 import { metadataFor } from "../data/camisetas.js";
-import { escapeHtml, FALLBACK_IMAGE } from "../lib/validation.js";
+import { escapeHtml, FALLBACK_IMAGE, friendlyError } from "../lib/validation.js";
 
 const contenedor = document.getElementById("camisetas");
 const filterTipo = document.getElementById("filter-tipo");
@@ -16,12 +16,10 @@ async function cargarCamisetas() {
   try {
     const user = await withTimeout(getUser());
     if (!user) {
-      console.log("[dashboard] sin sesión, redirigiendo a /login");
       window.location.href = "/login";
       return;
     }
 
-    console.log("[dashboard] cargando camisetas para usuario", user.id);
     const { data, error } = await withTimeout(
       supabase
         .from("camisetas")
@@ -31,25 +29,22 @@ async function cargarCamisetas() {
     );
 
     if (error) {
-      console.error("[dashboard] error al cargar camisetas:", error.message, error);
-      contenedor.innerHTML = `<p class="empty-state">Error al cargar: ${escapeHtml(error.message)}</p>`;
-      cardCount.textContent = "Error";
+      if (contenedor) contenedor.innerHTML = `<p class="empty-state">Error al cargar: ${escapeHtml(error.message)}</p>`;
+      if (cardCount) cardCount.textContent = "Error";
       return;
     }
 
     allItems = data ?? [];
-    console.log("[dashboard] camisetas cargadas:", allItems.length);
     renderCatalog();
   } catch (err) {
-    console.error("[dashboard] error:", err.message, err);
-    contenedor.innerHTML = `<p class="empty-state">${escapeHtml(err.message || "Error de conexión.")}</p>`;
-    cardCount.textContent = "Error";
+    if (contenedor) contenedor.innerHTML = `<p class="empty-state">${escapeHtml(friendlyError(err) || "Error de conexión.")}</p>`;
+    if (cardCount) cardCount.textContent = "Error";
   }
 }
 
 function getFilteredItems() {
-  const query = searchInput.value.trim().toLowerCase();
-  const selectedTipo = filterTipo.value;
+  const query = searchInput?.value?.trim().toLowerCase() ?? "";
+  const selectedTipo = filterTipo?.value ?? "Todos";
 
   return allItems.filter((item) => {
     const text = `${item.equipo} ${item.tipo} ${item.marca} ${item.temporada} ${item.descripcion}`.toLowerCase();
@@ -70,7 +65,7 @@ function renderCard(item) {
           src="${escapeHtml(imageSrc)}"
           alt="${escapeHtml(item.equipo)}"
           loading="lazy"
-          onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"
+          onerror="this.onerror=null;this.src='${escapeHtml(FALLBACK_IMAGE)}';"
         />
         <span class="image-tag">${escapeHtml(item.tipo || "Sin tipo")}</span>
       </div>
@@ -94,23 +89,23 @@ function renderCatalog() {
   const filtered = getFilteredItems();
 
   if (allItems.length === 0) {
-    contenedor.innerHTML = "";
-    emptyHint.hidden = false;
-    cardCount.textContent = "0 camisetas";
+    if (contenedor) contenedor.innerHTML = "";
+    if (emptyHint) emptyHint.hidden = false;
+    if (cardCount) cardCount.textContent = "0 camisetas";
     return;
   }
 
-  emptyHint.hidden = true;
+  if (emptyHint) emptyHint.hidden = true;
 
   if (filtered.length === 0) {
-    contenedor.innerHTML = `<p class="empty-state">No hay camisetas que coincidan con los filtros.</p>`;
-    cardCount.textContent = "0 resultados";
+    if (contenedor) contenedor.innerHTML = `<p class="empty-state">No hay camisetas que coincidan con los filtros.</p>`;
+    if (cardCount) cardCount.textContent = "0 resultados";
     return;
   }
 
-  contenedor.innerHTML = filtered.map(renderCard).join("");
+  if (contenedor) contenedor.innerHTML = filtered.map(renderCard).join("");
   attachDeleteHandlers();
-  cardCount.textContent = `${filtered.length} camiseta${filtered.length === 1 ? "" : "s"}`;
+  if (cardCount) cardCount.textContent = `${filtered.length} camiseta${filtered.length === 1 ? "" : "s"}`;
 }
 
 function attachDeleteHandlers() {
@@ -135,24 +130,21 @@ function attachDeleteHandlers() {
         );
 
         if (error) {
-          console.error("[dashboard] error al eliminar:", error.message, error);
-          alert(`No se pudo eliminar: ${error.message}`);
+          alert(`No se pudo eliminar: ${friendlyError(error)}`);
           return;
         }
 
-        console.log("[dashboard] camiseta eliminada:", camisetaId);
         allItems = allItems.filter((c) => c.id !== camisetaId);
         renderCatalog();
       } catch (err) {
-        console.error("[dashboard] error al eliminar:", err.message, err);
-        alert(err.message || "Error de conexión al eliminar.");
+        alert(friendlyError(err) || "Error de conexión al eliminar.");
       }
     });
   });
 }
 
-refreshBtn.addEventListener("click", cargarCamisetas);
-filterTipo.addEventListener("change", renderCatalog);
-searchInput.addEventListener("input", renderCatalog);
+refreshBtn?.addEventListener("click", cargarCamisetas);
+filterTipo?.addEventListener("change", renderCatalog);
+searchInput?.addEventListener("input", renderCatalog);
 
 cargarCamisetas();

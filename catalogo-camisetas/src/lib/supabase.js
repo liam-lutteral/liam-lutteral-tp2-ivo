@@ -14,9 +14,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Aumentamos el timeout a 30s porque Supabase free tier puede tardar
 // en "despertar" si el proyecto estuvo inactivo.
-export async function withTimeout(promise, ms = 30000) {
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(
+export function withTimeout(promise, ms = 30000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
       () =>
         reject(
           new Error(
@@ -26,7 +26,10 @@ export async function withTimeout(promise, ms = 30000) {
           )
         ),
       ms
-    )
-  );
-  return Promise.race([promise, timeoutPromise]);
+    );
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
 }
