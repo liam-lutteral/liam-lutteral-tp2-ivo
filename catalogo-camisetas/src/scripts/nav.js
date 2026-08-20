@@ -1,25 +1,23 @@
-import { signOut, getUser } from "../lib/auth.js";
+import { signOut } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 
 const guestLinks = document.querySelectorAll('[data-nav="guest"]');
 const authLinks = document.querySelectorAll('[data-nav="auth"]');
 const logoutBtn = document.getElementById("nav-logout");
 
+function setNavLoggedIn(isLoggedIn) {
+  guestLinks.forEach((el) => { el.hidden = isLoggedIn; });
+  authLinks.forEach((el) => { el.hidden = !isLoggedIn; });
+}
+
 async function updateNav() {
   try {
-    const user = await getUser();
-    const isLoggedIn = Boolean(user);
-
-    // Sin sesión: "Iniciar sesión" y "Registro".
-    // Con sesión: "Bienvenido" + "Cerrar sesión" + links del catálogo.
-    guestLinks.forEach((el) => {
-      el.hidden = isLoggedIn;
-    });
-    authLinks.forEach((el) => {
-      el.hidden = !isLoggedIn;
-    });
-  } catch (err) {
-    // Silently ignore nav update errors — the page content handles its own auth.
+    // Use getSession() (local cache) instead of getUser() (server call)
+    // to avoid deadlocking the Supabase client's internal event loop.
+    const { data } = await supabase.auth.getSession();
+    setNavLoggedIn(Boolean(data?.session));
+  } catch {
+    setNavLoggedIn(false);
   }
 }
 
@@ -27,16 +25,20 @@ logoutBtn?.addEventListener("click", async () => {
   try {
     await signOut();
     window.location.href = "/";
-  } catch (err) {
-    // Logout failed — best-effort redirect anyway.
+  } catch {
     window.location.href = "/";
   }
 });
 
-const { data: { subscription } } = supabase.auth.onAuthStateChange(updateNav);
+// Listen for auth changes — use getSession (local) not getUser (server)
+// to prevent re-entrant deadlocks when setSession triggers SIGNED_IN.
+const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  (_event, session) => {
+    setNavLoggedIn(Boolean(session));
+  }
+);
 updateNav();
 
-// Clean up listener if Astro View Transitions swap the page.
 document.addEventListener("astro:before-swap", () => {
   subscription.unsubscribe();
 });
